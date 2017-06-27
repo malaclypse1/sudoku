@@ -6,6 +6,7 @@
 # square - a 3x3 section of the sudoku
 
 import numpy as np
+import itertools as it
 import sys
 from io import BytesIO, open
 
@@ -16,10 +17,37 @@ __version__ = "0.1"
 
 def square(grid, row, col):
     return grid[(row//3)*3:(row//3)*3+3, (col//3)*3:(col//3)*3+3]
-    
-def listGuesses(grid, row, col):
-    return (np.argwhere(grid[row,col])+1).flatten().tolist()
 
+def matchPair(rrange,crange):
+    #find matching pair in row/col/sqr
+    for r in rrange:
+        for c in crange:
+            #skip the original cell and look for matches of pair
+            #******this is removing from areas outside row/col/sqr!!!****
+            if (((c != col) or (r != row))
+              and (valid[row,col] == valid[r,c])):
+                #remove pair from all other cells (not original or match)
+                for rh in rrange:
+                    for ch in crange:
+                        if (ch != col or rh != row) and (ch != c or rh != r):
+                            valid[row,ch] -= valid[row,col]
+                            changed = True
+                            print("found double {}{}:{}".format((row+1,col+1),(c+1,r+1),valid[row,col]))
+                            #printPuzzle(puzzle)
+                            #sys.exit()
+
+def matchTriple(array):
+    #find triples in row/col/sqr
+    # array can be square(valid,r,c), valid[r,0:9] or valid[0:9,c]
+    for (a,b,c) in it.combinations(array.flatten(),3):
+        if len(a|b|c) == 3:
+            triple = set(a|b|c)
+            for val in np.nditer(array,flags=['refs_ok'],op_flags=['readwrite']):
+                if not(val <= triple):
+                    val -= triple
+                    changed = True
+                    #print("found triple {}".format(triple))
+    
 def printPuzzle(puzzle):
     squareR = 0
     while squareR < 9:
@@ -45,7 +73,7 @@ def printPuzzle(puzzle):
         
 #input
 puzzle = np.zeros(shape=(9,9), dtype = np.int8)
-for rowNo, row in enumerate(open("sample.txt", "r", encoding="utf-8")):
+for rowNo, row in enumerate(open(0, "r", encoding="utf-8")):
     for colNo, col in enumerate(row):
         if col == "\n":
             break
@@ -73,8 +101,7 @@ for (row,col),val in np.ndenumerate(puzzle):
                 valid[row,col].add(n)
 #print(valid)
 #check for known values
-doubles = set()
-triples = set()
+
 changed = True
 while changed:
     changed = False
@@ -148,153 +175,34 @@ while changed:
                     if col != c: #don't remove from cell
                         valid[row,c] -= uCol
                 changed = True
-#                                            
-# #part 3: twin values in two spots (infinite loop...)
-#             if (row,col) not in doubles and np.sum(valid[row,col]) == 2:
-#                 #find matching 2 true spots in row
-#                 #print("twin check {},{}: {}".format(row,col, np.argwhere(valid[row,col]).flatten().tolist()))
-#                 for c in range(9):
-#                     if c==col:
-#                         continue
-#                     if False not in (valid[row,col] == valid[row,c]):
-#                         # col and c have two matching guesses, so no other
-#                         # spots in that row can have those
-#                         changed = True
-#                         #print("found double ({},{}) and ({},{})".format(row,col,row,c))
-#                         doubles.add((row,col))
-#                         for cf in range(9):
-#                             if (c==cf or col==cf):
-#                                 continue
-#                             #a guess in row,col/c -> not a guess elsewhere
-#                             for nf in range(9):
-#                                 if valid[row,col,nf]:
-#                                     valid[row,cf,nf] = False
-#                 #find matching 2 true spots in col
-#                 for r in range(9):
-#                     if r==row:
-#                         continue
-#                     if False not in (valid[row,col] == valid[r,col]):
-#                         # row and r have two matching guesses, so no other
-#                         # spots in that col can have those
-#                         changed = True
-#                         #print("found double ({},{}) and ({},{})".format(row,col,r,col))
-#                         doubles.add((row,col))
-#                         for rf in range(9):
-#                             if (r==rf or row==rf):
-#                                 continue
-#                             #a guess in row/r,col -> not a guess elsewhere
-#                             for nf in range(9):
-#                                 if valid[row,col,nf]:
-#                                     valid[rf,col,nf] = False
-#                 #find matching 2 true spots in square
-#                 for r,rval in enumerate(square(valid,row,col)):
-#                     for c,_ in enumerate(rval):
-#                         if (r==row and c==col):
-#                             continue
-#                         if False not in (valid[row,col] == valid[r,c]):
-#                             # square has two matching guesses, so no other
-#                             # spots in that square can have those
-#                             changed = True
-#                             #print("found double ({},{}) and ({},{})".format(row,col,r,c))
-#                             doubles.add((row,col))
-#                             for rf in range(row//3*3,row//3*3+3):
-#                                 for cf in range(col//3*3,col//3*3+3):
-#                                     if ((r==rf and c==cf) or (row==rf) and (col==cf)):
-#                                         continue
-#                                     #a guess in row/r,col -> not a guess elsewhere
-#                                     for nf in range(9):
-#                                         if valid[row,col,nf]:
-#                                             valid[rf,cf,nf] = False
-# #part 4: triples
-# #for triples, we need to look for combinations that can include [1,3] [2,3] [1,2]
-# #so find spots with 2-3 guesses, match with spots with 2-3 guesses,
-# #see if set has 3...
-#             if (row,col) not in triples:
-#                 trio = listGuesses(valid,row,col)
-#                 if (len(trio) > 1 and len(trio) < 4):
-#                     #look for row matches
-#                     for r,c in np.ndenumerate(valid
-#                     for c in range(9):
-#                         if c==col:
-#                             continue
-#                         guesses2 = set(listGuesses(valid,row,c))
-#                         if len(guesses2) < 2:
-#                             continue
-#                         guesses = set(trio) | guesses2
-#                         if len(guesses) < 4:
-#                             for c2 in range(9):
-#                                 if (c2==col or c2==c):
-#                                     continue
-#                                 guesses3 = set(listGuesses(valid,row,c2))
-#                                 if len(guesses3) < 2:
-#                                     continue
-#                                 guesses = guesses | guesses3
-#                                 if len(guesses) < 4:
-#                                     #col, c, c2 all share 3 guesses
-#                                     print("")
-#                                     printPuzzle(puzzle)
-#                                     triples.add((row,col))
-#                                     changed=True
-#                                     for c3 in range(9):
-#                                         if not (c==c3 or c2==c3 or col==c3):
-#                                             for f in guesses:
-#                                                 valid[row,c3,f-1] = False
-#             
-#                     #look for col matches
-#                     for r in range(9):
-#                         if r==row:
-#                             continue
-#                         guesses2 = set(listGuesses(valid,r,col))
-#                         if len(guesses2) < 2:
-#                             continue
-#                         guesses = set(trio) | guesses2
-#                         if len(guesses) < 4:
-#                             for r2 in range(9):
-#                                 if (r2==row or r2==r):
-#                                     continue
-#                                 guesses3 = set(listGuesses(valid,r2,col))
-#                                 if len(guesses3) < 2:
-#                                     continue
-#                                 guesses = guesses | guesses3
-#                                 if len(guesses) < 4:
-#                                     #row, r, r2 all share 3 guesses
-#                                     triples.add((row,col))
-#                                     changed=True
-#                                     for r3 in range(9):
-#                                         if not (r==r3 or r2==r3 or row==r3):
-#                                             for f in guesses:
-#                                                 valid[r3,col,f-1] = False
-# 
-#                     #look for square matches
-#                     for r,c in np.ndindex(
-#                     for r,rval in enumerate(square(valid,row,col)):
-#                         for c,val in enumerate(rval):
-#                             if (r==row and c==col):
-#                                 continue
-#                             guesses2 = set(listGuesses(valid,r,c))
-#                             if len(guesses2) < 2:
-#                                 continue
-#                             guesses = set(trio) | guesses2
-#                             if len(guesses) < 4:
-#                                 for r2,r2val in enumerate(square(valid,row,col)):
-#                                     for c2,_ in enumerate(r2val):
-#                                         if ((c2==col and r2==row) or (c2==c and r2==r)):
-#                                             continue
-#                                         guesses3 = set(listGuesses(valid,c2,c2))
-#                                         if len(guesses3) < 2:
-#                                             continue
-#                                         guesses = guesses | guesses3
-#                                         if len(guesses) < 4:
-#                                             #(row,col), (r,c), (r2,c2) all share 3 guesses
-#                                             triples.add((row,col))
-#                                             changed=True
-#                                             for r3,r3val in enumerate(square(valid,row,col)):
-#                                                 for c3,_ in enumerate(r3val):
-#                                                     if not ((c3==col and r3==row)
-#                                                             or (c3==c2 and r3==r2)
-#                                                             or (c3==c and r3==r)):
-#                                                         for f in guesses:
-#                                                             valid[r3,c3,f-1] = False
+
+#part 3: if a col/row/sqr has 2 cells that have 2 guesses, those guesses can't appear
+#   elsewhere in the col/row/sqr
+# 27   27   273 -> 27   27  3
+#   similarly, for 3 cells with 3 guesses
+# 273  27   37  31 -> 273  27  37  1
+#   if 2 cells are the only places those guesses appear, those cells can't have other
+#   guesses
+# 237  247  3  1  45 89 13 56 13 -> 27 27  3  1  45 89 13 56 13
+
+            #reminder: only looking at unsolved cells
+            if len(valid[row,col]) == 2: # check for doubles
+                #****something broken in here*****
+                #find matching pair in row/col/sqr
+                matchPair(range(row),range(0,9))
+                matchPair(range(0,9),range(col))
+                matchPair(range(row//3*3,row//3*3+3),range(col//3*3,col//3*3+3))    
+
+#part 4: triples
+#for triples, we need to look for combinations that can include [1,3] [2,3] [1,2]
+#so find spots with 2-3 guesses, match with spots with 2-3 guesses,
+#see if set has 3...
+    for n in range(9):
+        matchTriple(valid[n,0:9])
+        matchTriple(valid[0:9,n])
+    for r in range(0,9,3):
+        for c in range(0,9,3):
+            matchTriple(square(valid,r,c))
 
 print("") 
 printPuzzle(puzzle)
