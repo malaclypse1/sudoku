@@ -208,7 +208,8 @@ while changed:
     for r in range(0,9,3):
         for c in range(0,9,3):
             matchTriple(square(valid,r,c))
-            
+
+#part 5: quads       
     for n in range(9):
         matchQuad(valid[n,0:9])
         matchQuad(valid[0:9,n])
