@@ -18,23 +18,17 @@ __version__ = "0.1"
 def square(grid, row, col):
     return grid[(row//3)*3:(row//3)*3+3, (col//3)*3:(col//3)*3+3]
 
-def matchPair(rrange,crange):
-    #find matching pair in row/col/sqr
-    for r in rrange:
-        for c in crange:
-            #skip the original cell and look for matches of pair
-            #******this is removing from areas outside row/col/sqr!!!****
-            if (((c != col) or (r != row))
-              and (valid[row,col] == valid[r,c])):
-                #remove pair from all other cells (not original or match)
-                for rh in rrange:
-                    for ch in crange:
-                        if (ch != col or rh != row) and (ch != c or rh != r):
-                            valid[row,ch] -= valid[row,col]
-                            changed = True
-                            print("found double {}{}:{}".format((row+1,col+1),(c+1,r+1),valid[row,col]))
-                            #printPuzzle(puzzle)
-                            #sys.exit()
+def matchPair(array):
+    #find doubles in row/col/sqr
+    # array can be square(valid,r,c), valid[r,0:9] or valid[0:9,c]
+    for (a,b) in it.combinations(array.flatten(),2):
+        if len(a|b) == 2:
+            double = set(a|b)
+            for val in np.nditer(array,flags=['refs_ok'],op_flags=['readwrite']):
+                if not(val <= double):
+                    val -= double
+                    changed = True
+                    #print("found double {}".format(double))
 
 def matchTriple(array):
     #find triples in row/col/sqr
@@ -47,7 +41,19 @@ def matchTriple(array):
                     val -= triple
                     changed = True
                     #print("found triple {}".format(triple))
-    
+
+def matchQuad(array):
+    #find Quads in row/col/sqr
+    # array can be square(valid,r,c), valid[r,0:9] or valid[0:9,c]
+    for (a,b,c,d) in it.combinations(array.flatten(),4):
+        if len(a|b|c|d) == 4:
+            quad = set(a|b|c|d)
+            for val in np.nditer(array,flags=['refs_ok'],op_flags=['readwrite']):
+                if not(val <= quad):
+                    val -= quad
+                    changed = True
+                    #print("found quad {}".format(quad))
+                    
 def printPuzzle(puzzle):
     squareR = 0
     while squareR < 9:
@@ -185,13 +191,12 @@ while changed:
 #   guesses
 # 237  247  3  1  45 89 13 56 13 -> 27 27  3  1  45 89 13 56 13
 
-            #reminder: only looking at unsolved cells
-            if len(valid[row,col]) == 2: # check for doubles
-                #****something broken in here*****
-                #find matching pair in row/col/sqr
-                matchPair(range(row),range(0,9))
-                matchPair(range(0,9),range(col))
-                matchPair(range(row//3*3,row//3*3+3),range(col//3*3,col//3*3+3))    
+    for n in range(9):
+        matchPair(valid[n,0:9])
+        matchPair(valid[0:9,n])
+    for r in range(0,9,3):
+        for c in range(0,9,3):
+            matchPair(square(valid,r,c))  
 
 #part 4: triples
 #for triples, we need to look for combinations that can include [1,3] [2,3] [1,2]
@@ -203,6 +208,14 @@ while changed:
     for r in range(0,9,3):
         for c in range(0,9,3):
             matchTriple(square(valid,r,c))
+            
+    for n in range(9):
+        matchQuad(valid[n,0:9])
+        matchQuad(valid[0:9,n])
+    for r in range(0,9,3):
+        for c in range(0,9,3):
+            matchQuad(square(valid,r,c))
+
 
 print("") 
 printPuzzle(puzzle)
